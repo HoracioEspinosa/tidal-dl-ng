@@ -264,13 +264,26 @@ def check_file_exists(path_file: pathlib.Path, extension_ignore: bool = False) -
     return result
 
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+def resource_path(relative_path: str) -> str:
+    """Resolve a bundled resource path for source checkouts and compiled builds alike.
 
-    return os.path.join(base_path, relative_path)
+    PyInstaller extracts data files to ``sys._MEIPASS``. Nuitka standalone builds place them next to
+    the executable, which is the only reliable anchor: a bundle launched from Finder inherits ``/``
+    as its working directory, so a relative lookup would silently miss every resource.
+
+    :param relative_path: Resource path relative to the project root.
+    :return: Absolute path to the resource.
+    """
+    base_path: Path
+
+    if hasattr(sys, "_MEIPASS"):
+        base_path = Path(sys._MEIPASS)
+    elif "__compiled__" in globals() or getattr(sys, "frozen", False):
+        base_path = Path(sys.executable).parent
+    else:
+        base_path = Path(__file__).parent.parent.parent
+
+    return str(base_path / relative_path)
 
 
 def url_to_filename(url: str) -> str:
