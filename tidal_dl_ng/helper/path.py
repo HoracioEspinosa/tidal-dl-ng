@@ -4,7 +4,7 @@ import pathlib
 import posixpath
 import re
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -73,119 +73,226 @@ def format_path_media(
     return result
 
 
-def format_str_media(
-    name: str, media: Track | Album | Playlist | UserPlaylist | Video | Mix, album_track_num_pad_min: int = 0
-) -> str:
-    result: str = name
+MediaAny = Track | Album | Playlist | UserPlaylist | Video | Mix
+
+
+def _duration_minutes(seconds: int) -> str:
+    minutes, remainder = divmod(seconds, 60)
+
+    return f"{minutes:01d}:{remainder:02d}"
+
+
+def _explicit_suffix(media: MediaAny) -> str:
+    return " (Explicit)" if media.explicit else ""
+
+
+def _album_of(media: Track | Video) -> Album | None:
+    return media.album if hasattr(media, "album") else None
+
+
+def _num_volumes_of(media: Track | Video) -> int:
+    album = _album_of(media)
+
+    return album.num_volumes if album is not None else 1
+
+
+def _num_tracks_of(media: Track | Video) -> int:
+    album = _album_of(media)
+
+    return album.num_tracks if album is not None else 1
+
+
+def _fmt_artist_name(media: MediaAny, pad_min: int) -> str | None:
+    if not isinstance(media, Track | Video):
+        return None
+
+    if hasattr(media, "artists"):
+        return name_builder_artist(media)
+
+    if hasattr(media, "artist"):
+        return media.artist.name
+
+    return None
+
+
+def _fmt_track_title(media: MediaAny, pad_min: int) -> str | None:
+    return name_builder_title(media) if isinstance(media, Track | Video) else None
+
+
+def _fmt_mix_name(media: MediaAny, pad_min: int) -> str | None:
+    return media.title if isinstance(media, Mix) else None
+
+
+def _fmt_playlist_name(media: MediaAny, pad_min: int) -> str | None:
+    return media.name if isinstance(media, Playlist | UserPlaylist) else None
+
+
+def _fmt_album_title(media: MediaAny, pad_min: int) -> str | None:
+    if isinstance(media, Album):
+        return media.name
+
+    if isinstance(media, Track):
+        return media.album.name
+
+    return None
+
+
+def _fmt_album_track_num(media: MediaAny, pad_min: int) -> str | None:
+    if not isinstance(media, Track | Video):
+        return None
+
+    count_digits: int = int(math.log10(_num_tracks_of(media))) + 1
+
+    return str(media.track_num).zfill(max(count_digits, pad_min))
+
+
+def _fmt_album_num_tracks(media: MediaAny, pad_min: int) -> str | None:
+    return str(_num_tracks_of(media)) if isinstance(media, Track | Video) else None
+
+
+def _fmt_track_id(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.id) if isinstance(media, Track | Video) else None
+
+
+def _fmt_playlist_id(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.id) if isinstance(media, Playlist) else None
+
+
+def _fmt_album_id(media: MediaAny, pad_min: int) -> str | None:
+    if isinstance(media, Album):
+        return str(media.id)
+
+    if isinstance(media, Track):
+        return str(media.album.id)
+
+    return None
+
+
+def _fmt_track_duration_seconds(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.duration) if isinstance(media, Track | Video) else None
+
+
+def _fmt_track_duration_minutes(media: MediaAny, pad_min: int) -> str | None:
+    return _duration_minutes(media.duration) if isinstance(media, Track | Video) else None
+
+
+def _fmt_album_duration_seconds(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.duration) if isinstance(media, Album) else None
+
+
+def _fmt_album_duration_minutes(media: MediaAny, pad_min: int) -> str | None:
+    return _duration_minutes(media.duration) if isinstance(media, Album) else None
+
+
+def _fmt_album_year(media: MediaAny, pad_min: int) -> str | None:
+    if isinstance(media, Album):
+        return str(media.year)
+
+    if isinstance(media, Track):
+        return str(media.album.year)
+
+    return None
+
+
+def _fmt_video_quality(media: MediaAny, pad_min: int) -> str | None:
+    return media.video_quality if isinstance(media, Video) else None
+
+
+def _fmt_track_quality(media: MediaAny, pad_min: int) -> str | None:
+    return ", ".join(tag for tag in media.media_metadata_tags) if isinstance(media, Track) else None
+
+
+def _fmt_track_explicit(media: MediaAny, pad_min: int) -> str | None:
+    return _explicit_suffix(media) if isinstance(media, Track | Video) else None
+
+
+def _fmt_album_explicit(media: MediaAny, pad_min: int) -> str | None:
+    return _explicit_suffix(media) if isinstance(media, Album) else None
+
+
+def _fmt_album_num_volumes(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.num_volumes) if isinstance(media, Album) else None
+
+
+def _fmt_track_volume_num(media: MediaAny, pad_min: int) -> str | None:
+    return str(media.volume_num) if isinstance(media, Track | Video) else None
+
+
+def _fmt_track_volume_num_optional(media: MediaAny, pad_min: int) -> str | None:
+    if not isinstance(media, Track | Video):
+        return None
+
+    return "" if _num_volumes_of(media) == 1 else str(media.volume_num)
+
+
+def _fmt_track_volume_num_optional_cd(media: MediaAny, pad_min: int) -> str | None:
+    if not isinstance(media, Track | Video):
+        return None
+
+    return "" if _num_volumes_of(media) == 1 else f"CD{media.volume_num!s}"
+
+
+def _fmt_isrc(media: MediaAny, pad_min: int) -> str | None:
+    return media.isrc if isinstance(media, Track) else None
+
+
+# Playlist durations deliberately read from an Album, matching the placeholders' original behaviour.
+_MEDIA_FORMATTERS: dict[str, Callable[[MediaAny, int], str | None]] = {
+    "artist_name": _fmt_artist_name,
+    "album_artist": lambda media, pad_min: name_builder_album_artist(media),
+    "track_title": _fmt_track_title,
+    "mix_name": _fmt_mix_name,
+    "playlist_name": _fmt_playlist_name,
+    "album_title": _fmt_album_title,
+    "album_track_num": _fmt_album_track_num,
+    "album_num_tracks": _fmt_album_num_tracks,
+    "track_id": _fmt_track_id,
+    "playlist_id": _fmt_playlist_id,
+    "album_id": _fmt_album_id,
+    "track_duration_seconds": _fmt_track_duration_seconds,
+    "track_duration_minutes": _fmt_track_duration_minutes,
+    "album_duration_seconds": _fmt_album_duration_seconds,
+    "album_duration_minutes": _fmt_album_duration_minutes,
+    "playlist_duration_seconds": _fmt_album_duration_seconds,
+    "playlist_duration_minutes": _fmt_album_duration_minutes,
+    "album_year": _fmt_album_year,
+    "video_quality": _fmt_video_quality,
+    "track_quality": _fmt_track_quality,
+    "track_explicit": _fmt_track_explicit,
+    "album_explicit": _fmt_album_explicit,
+    "album_num_volumes": _fmt_album_num_volumes,
+    "track_volume_num": _fmt_track_volume_num,
+    "track_volume_num_optional": _fmt_track_volume_num_optional,
+    "track_volume_num_optional_CD": _fmt_track_volume_num_optional_cd,
+    "isrc": _fmt_isrc,
+}
+
+
+def format_str_media(name: str, media: MediaAny, album_track_num_pad_min: int = 0) -> str:
+    """Resolve a filename placeholder against a media item.
+
+    An unknown placeholder, one that does not apply to this media type, or a lookup that raises all
+    yield the placeholder unchanged, so the caller can decide how to handle the gap.
+
+    :param name: Placeholder to resolve.
+    :param media: Media item to read the value from.
+    :param album_track_num_pad_min: Minimum width to zero-pad the album track number to.
+    :return: The resolved value, or `name` when it cannot be resolved.
+    """
+    formatter = _MEDIA_FORMATTERS.get(name)
+
+    if formatter is None:
+        return name
 
     try:
-        match name:
-            case "artist_name":
-                if isinstance(media, Track | Video):
-                    if hasattr(media, "artists"):
-                        result = name_builder_artist(media)
-                    elif hasattr(media, "artist"):
-                        result = media.artist.name
-            case "album_artist":
-                result = name_builder_album_artist(media)
-            case "track_title":
-                if isinstance(media, Track | Video):
-                    result = name_builder_title(media)
-            case "mix_name":
-                if isinstance(media, Mix):
-                    result = media.title
-            case "playlist_name":
-                if isinstance(media, Playlist | UserPlaylist):
-                    result = media.name
-            case "album_title":
-                if isinstance(media, Album):
-                    result = media.name
-                elif isinstance(media, Track):
-                    result = media.album.name
-            case "album_track_num":
-                if isinstance(media, Track | Video):
-                    num_tracks: int = media.album.num_tracks if hasattr(media, "album") else 1
-                    count_digits: int = int(math.log10(num_tracks)) + 1
-                    count_digits_computed: int = (
-                        count_digits if count_digits > album_track_num_pad_min else album_track_num_pad_min
-                    )
-                    result = str(media.track_num).zfill(count_digits_computed)
-            case "album_num_tracks":
-                if isinstance(media, Track | Video):
-                    result = str(media.album.num_tracks if hasattr(media, "album") else 1)
-            case "track_id":
-                if isinstance(media, Track | Video):
-                    result = str(media.id)
-            case "playlist_id":
-                if isinstance(media, Playlist):
-                    result = str(media.id)
-            case "album_id":
-                if isinstance(media, Album):
-                    result = str(media.id)
-                elif isinstance(media, Track):
-                    result = str(media.album.id)
-            case "track_duration_seconds":
-                if isinstance(media, Track | Video):
-                    result = str(media.duration)
-            case "track_duration_minutes":
-                if isinstance(media, Track | Video):
-                    m, s = divmod(media.duration, 60)
-                    result = f"{m:01d}:{s:02d}"
-            case "album_duration_seconds":
-                if isinstance(media, Album):
-                    result = str(media.duration)
-            case "album_duration_minutes":
-                if isinstance(media, Album):
-                    m, s = divmod(media.duration, 60)
-                    result = f"{m:01d}:{s:02d}"
-            case "playlist_duration_seconds":
-                if isinstance(media, Album):
-                    result = str(media.duration)
-            case "playlist_duration_minutes":
-                if isinstance(media, Album):
-                    m, s = divmod(media.duration, 60)
-                    result = f"{m:01d}:{s:02d}"
-            case "album_year":
-                if isinstance(media, Album):
-                    result = str(media.year)
-                elif isinstance(media, Track):
-                    result = str(media.album.year)
-            case "video_quality":
-                if isinstance(media, Video):
-                    result = media.video_quality
-            case "track_quality":
-                if isinstance(media, Track):
-                    result = ", ".join(tag for tag in media.media_metadata_tags)
-            case "track_explicit":
-                if isinstance(media, Track | Video):
-                    result = " (Explicit)" if media.explicit else ""
-            case "album_explicit":
-                if isinstance(media, Album):
-                    result = " (Explicit)" if media.explicit else ""
-            case "album_num_volumes":
-                if isinstance(media, Album):
-                    result = str(media.num_volumes)
-            case "track_volume_num":
-                if isinstance(media, Track | Video):
-                    result = str(media.volume_num)
-            case "track_volume_num_optional":
-                if isinstance(media, Track | Video):
-                    num_volumes: int = media.album.num_volumes if hasattr(media, "album") else 1
-                    result = "" if num_volumes == 1 else str(media.volume_num)
-            case "track_volume_num_optional_CD":
-                if isinstance(media, Track | Video):
-                    num_volumes: int = media.album.num_volumes if hasattr(media, "album") else 1
-                    result = "" if num_volumes == 1 else f"CD{media.volume_num!s}"
-            case "isrc":
-                if isinstance(media, Track):
-                    result = media.isrc
+        result = formatter(media, album_track_num_pad_min)
     except Exception as e:
         # TODO: Implement better exception logging.
         print(e)
 
-        pass
+        return name
 
-    return result
+    return name if result is None else result
 
 
 def get_format_template(
