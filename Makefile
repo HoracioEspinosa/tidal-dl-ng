@@ -5,6 +5,14 @@ path_asset = "tidal_dl_ng/ui"
 APP_BUNDLE_NAME="gui"
 DMG_NAME="dmg"
 
+# Nuitka picks the first clang on PATH. A Homebrew LLVM installation shadows Apple clang and does not
+# know where the macOS SDK lives, which fails the C backend with "'stdlib.h' file not found".
+# Pointing SDKROOT at the active SDK makes either compiler resolve the system headers.
+ifeq ($(shell uname -s),Darwin)
+SDKROOT ?= $(shell xcrun --show-sdk-path)
+export SDKROOT
+endif
+
 .PHONY: install
 install: ## Install the poetry environment and install the pre-commit hooks
 	@echo "🚀 Creating virtual environment using pyenv and poetry"
@@ -79,11 +87,24 @@ gui-windows: gui ## Build GUI app
 gui-linux: gui ## Build GUI app
 	@poetry run mv "$(app_path_dist)/$(APP_BUNDLE_NAME).dist" "$(app_path_dist)/$(APP_NAME)"
 
+.PHONY: check-macos-python
+check-macos-python: ## Reject an interpreter that makes Nuitka scan the Homebrew prefix
+	@poetry run python -c "from nuitka.PythonFlavors import isHomebrewPython; raise SystemExit(1 if isHomebrewPython() else 0)" || { \
+		echo "Refusing to build with a Homebrew Python."; \
+		echo "Nuitka adds every subdirectory of the Homebrew prefix to the library search path, so an"; \
+		echo "unrelated PySide6 under /opt/homebrew supplies the Qt libraries while the extension"; \
+		echo "modules come from this environment. The bundle then aborts at startup on a missing symbol."; \
+		echo "Switch to a non-Homebrew interpreter, for instance:"; \
+		echo "    poetry env use /usr/local/bin/python3.12"; \
+		exit 1; \
+	}
+
 # TODO: macos Signing: https://gist.github.com/txoof/0636835d3cc65245c6288b2374799c43
 .PHONY: gui-macos-dmg
-gui-macos-dmg: gui ## Package GUI in a *.dmg file
-	@poetry run mkdir -p $(app_path_dist)/dmg
-	@poetry run mv "$(app_path_dist)/$(APP_BUNDLE_NAME).app" "$(app_path_dist)/$(DMG_NAME)/$(APP_NAME).app"
+gui-macos-dmg: check-macos-python gui ## Package GUI in a *.dmg file
+	@rm -rf "$(app_path_dist)/$(DMG_NAME)" "$(app_path_dist)/$(APP_NAME).dmg"
+	@mkdir -p $(app_path_dist)/dmg
+	@mv "$(app_path_dist)/$(APP_BUNDLE_NAME).app" "$(app_path_dist)/$(DMG_NAME)/$(APP_NAME).app"
 	@poetry run create-dmg \
                 --volname "$(APP_NAME)" \
                 --volicon "$(path_asset)/icon.icns" \
