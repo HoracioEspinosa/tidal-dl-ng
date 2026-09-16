@@ -128,15 +128,50 @@ This needs to be done for each created / modified `*.ui` file accordingly.
 
 ### 🏗 Build the project
 
-To build the project use this command:
+First set up the development environment:
 
 ```bash
 make install
-# OR
-make gui-macos
+```
+
+Then build the desktop app for your platform:
+
+```bash
+make gui-macos-dmg   # macOS: .app bundle + .dmg installer
+make gui-linux       # Linux: standalone directory
+make gui-windows     # Windows: standalone directory
 ```
 
 See the `Makefile` for all available build commands.
+
+#### macOS (Apple Silicon)
+
+Nuitka compiles for the architecture of the machine it runs on, so an Apple Silicon Mac produces a
+native `arm64` build. Two extra tools are required:
+
+```bash
+brew install create-dmg   # required by the gui-macos-dmg target
+brew install ccache       # optional, but cuts rebuild times drastically
+```
+
+**Do not build with a Homebrew Python.** Nuitka treats every subdirectory of the Homebrew prefix as
+a library search path when the interpreter comes from Homebrew, and those paths take precedence
+while resolving `@rpath` entries. Any other PySide6 installed anywhere under `/opt/homebrew` — a
+different Python version's `site-packages`, for instance — then supplies the Qt libraries, while the
+PySide6 extension modules still come from the project environment. The mismatch only surfaces at
+runtime, as the bundle aborting on start with a `Symbol not found` error out of `QtCore`.
+
+Build against a Python that Nuitka does not associate with Homebrew — the python.org installer,
+pyenv and uv-managed interpreters all qualify:
+
+```bash
+poetry env use /usr/local/bin/python3.12   # python.org framework build
+poetry install --all-extras --with dev
+poetry run python -m nuitka --version      # must report: Flavor: CPython Official
+```
+
+The resulting `dist/TIDAL-Downloader-NG.dmg` is signed ad-hoc, so Gatekeeper still quarantines it on
+another machine. See the FAQ entry below for how to clear that attribute.
 
 The CI/CD pipeline will be triggered when you open a pull request, merge to main, or when you create a new release.
 
