@@ -16,7 +16,7 @@ from tidalapi import Album, Mix, Playlist, Track, UserPlaylist, Video
 from tidalapi.media import AudioExtensions
 
 from tidal_dl_ng import __name_display__
-from tidal_dl_ng.constants import FILENAME_LENGTH_MAX, FILENAME_SANITIZE_PLACEHOLDER, UNIQUIFY_THRESHOLD, MediaType
+from tidal_dl_ng.constants import UNIQUIFY_THRESHOLD, MediaType
 from tidal_dl_ng.helper.tidal import name_builder_album_artist, name_builder_artist, name_builder_title
 
 
@@ -225,7 +225,7 @@ def path_file_sanitize(path_file: pathlib.Path, adapt: bool = False, uniquify: b
         sanitized_path = sanitize_filepath(
             sanitized_path, replacement_text=" ", validate_after_sanitize=True, platform="auto"
         )
-    except ValidationError as e:
+    except ValidationError:
         if adapt:
             sanitized_path = pathlib.Path.home() / sanitized_path.name  # Fallback to home directory
         else:

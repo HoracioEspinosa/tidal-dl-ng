@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import signal
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Optional
@@ -17,6 +16,7 @@ from rich.progress import (
     TextColumn,
 )
 from rich.table import Table
+from tidalapi.media import Quality
 
 from tidal_dl_ng import __version__
 from tidal_dl_ng.config import HandlingApp, Settings, Tidal
@@ -31,8 +31,6 @@ from tidal_dl_ng.helper.tidal import (
 )
 from tidal_dl_ng.helper.wrapper import LoggerWrapped
 from tidal_dl_ng.model.cfg import HelpSettings
-
-from tidalapi.media import Quality
 
 app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]}, add_completion=False)
 dl_fav_group = typer.Typer(
