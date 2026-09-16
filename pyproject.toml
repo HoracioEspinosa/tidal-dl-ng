@@ -81,6 +81,12 @@ griffe = "^1.5.1"
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.deptry.per_rule_ignores]
+# tidalapi parses DASH manifests through mpegdash. It is declared here as well so its version stays
+# under this project's control instead of floating with the transitive requirement, which deptry
+# reports as unused because nothing in this codebase imports it directly.
+DEP002 = ["mpegdash"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
