@@ -3,9 +3,9 @@ name = "tidal-dl-ng"
 authors = [
   {name = "Robert Honz",email = "<cen.sored@gmail.com>"}
 ]
-version = "0.24.6"
+version = "0.24.7"
 description = "TIDAL Medial Downloader Next Generation!"
-repository = "https://github.com/exislow/tidal-dl-ng"
+repository = "https://github.com/HoracioEspinosa/tidal-dl-ng"
 documentation = "https://exislow.github.io/tidal-dl-ng/"
 readme = "README.md"
 packages = [
@@ -66,7 +66,7 @@ pylint = "^3.3.1"
 pillow = "^11.0.0"
 pytest-cov = "^6.0.0"
 black = "^24.10.0"
-nuitka = "^2.5.9"
+nuitka = "^2.8.10"
 
 [tool.poetry.group.docs]
 optional = true
@@ -80,6 +80,12 @@ griffe = "^1.5.1"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.deptry.per_rule_ignores]
+# tidalapi parses DASH manifests through mpegdash. It is declared here as well so its version stays
+# under this project's control instead of floating with the transitive requirement, which deptry
+# reports as unused because nothing in this codebase imports it directly.
+DEP002 = ["mpegdash"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -174,7 +180,7 @@ profile = "black"
 multi_line_output = 3
 indent = 4
 color_output = true
-known_third_party = ["Crypto", "PySide6", "coloredlogs", "config", "dataclasses_json", "ffmpeg", "m3u8", "mutagen", "pathvalidate", "requests", "rich", "tidalapi", "toml", "typer"]
+known_third_party = ["Crypto", "PySide6", "coloredlogs", "dataclasses_json", "ffmpeg", "m3u8", "mutagen", "pathvalidate", "pytest", "requests", "rich", "tidalapi", "toml", "typer"]
 
 [tool.mypy]
 # https://mypy.readthedocs.io/en/latest/config_file.html#using-a-pyproject-toml-file

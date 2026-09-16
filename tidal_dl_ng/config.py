@@ -9,6 +9,7 @@ from typing import Any
 
 import tidalapi
 from requests import HTTPError
+from tidalapi.exceptions import AuthenticationError
 
 from tidal_dl_ng.helper.decorator import SingletonMeta
 from tidal_dl_ng.helper.path import path_config_base, path_file_settings, path_file_token
@@ -129,11 +130,13 @@ class Tidal(BaseConfig, metaclass=SingletonMeta):
                     self.data.expiry_time,
                     is_pkce=do_pkce,
                 )
-            except (HTTPError, JSONDecodeError):
+            except (HTTPError, JSONDecodeError, AuthenticationError):
                 result = False
-                # Remove token file. Probably corrupt or invalid.
+                # Remove token file. Probably corrupt, invalid or expired beyond refresh.
                 if os.path.exists(self.file_path):
                     os.remove(self.file_path)
+
+                self.token_from_storage = False
 
                 print(
                     "Either there is something wrong with your credentials / account or some server problems on TIDALs "

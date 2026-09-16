@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 import signal
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
-from config import HandlingApp
 from rich.console import Group
 from rich.live import Live
 from rich.progress import (
@@ -18,9 +16,10 @@ from rich.progress import (
     TextColumn,
 )
 from rich.table import Table
+from tidalapi.media import Quality
 
 from tidal_dl_ng import __version__
-from tidal_dl_ng.config import Settings, Tidal
+from tidal_dl_ng.config import HandlingApp, Settings, Tidal
 from tidal_dl_ng.constants import CTX_TIDAL, MediaType
 from tidal_dl_ng.download import Download
 from tidal_dl_ng.helper.path import get_format_template, path_file_settings
@@ -32,8 +31,6 @@ from tidal_dl_ng.helper.tidal import (
 )
 from tidal_dl_ng.helper.wrapper import LoggerWrapped
 from tidal_dl_ng.model.cfg import HelpSettings
-
-from tidalapi.media import Quality
 
 app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]}, add_completion=False)
 dl_fav_group = typer.Typer(
@@ -137,7 +134,7 @@ def _download(ctx: typer.Context, urls: list[str], try_login: bool = True) -> bo
                 if media_type in [MediaType.TRACK, MediaType.VIDEO]:
                     download_delay: bool = bool(settings.data.download_delay and urls.index(item) < urls_pos_last)
                     quality_audio = Quality(settings.data.quality_audio)
-                    
+
                     dl.item(
                         media_id=item_id,
                         media_type=media_type,
