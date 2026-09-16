@@ -5,7 +5,7 @@ authors = [
 ]
 version = "0.24.7"
 description = "TIDAL Medial Downloader Next Generation!"
-repository = "https://github.com/exislow/tidal-dl-ng"
+repository = "https://github.com/HoracioEspinosa/tidal-dl-ng"
 documentation = "https://exislow.github.io/tidal-dl-ng/"
 readme = "README.md"
 packages = [
