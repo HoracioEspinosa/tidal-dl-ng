@@ -137,7 +137,7 @@ def _download(ctx: typer.Context, urls: list[str], try_login: bool = True) -> bo
                 if media_type in [MediaType.TRACK, MediaType.VIDEO]:
                     download_delay: bool = bool(settings.data.download_delay and urls.index(item) < urls_pos_last)
                     quality_audio = Quality(settings.data.quality_audio)
-                    
+
                     dl.item(
                         media_id=item_id,
                         media_type=media_type,

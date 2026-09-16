@@ -213,14 +213,18 @@ def path_file_sanitize(path_file: pathlib.Path, adapt: bool = False, uniquify: b
     file_ext = path_file.suffix  # Keep the correct extension (.m4a, .flac)
 
     # Sanitize the filename (excluding the extension)
-    sanitized_filename = sanitize_filename(file_stem, replacement_text=" ", validate_after_sanitize=True, platform="auto")
+    sanitized_filename = sanitize_filename(
+        file_stem, replacement_text=" ", validate_after_sanitize=True, platform="auto"
+    )
 
     # Rebuild the sanitized path
     sanitized_path = path_parent / f"{sanitized_filename}{file_ext}"
 
     # Ensure full path sanitization
     try:
-        sanitized_path = sanitize_filepath(sanitized_path, replacement_text=" ", validate_after_sanitize=True, platform="auto")
+        sanitized_path = sanitize_filepath(
+            sanitized_path, replacement_text=" ", validate_after_sanitize=True, platform="auto"
+        )
     except ValidationError as e:
         if adapt:
             sanitized_path = pathlib.Path.home() / sanitized_path.name  # Fallback to home directory
