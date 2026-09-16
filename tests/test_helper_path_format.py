@@ -164,6 +164,36 @@ def test_a_raising_attribute_falls_back_to_the_placeholder():
     assert format_str_media("track_duration_minutes", exploding) == "track_duration_minutes"
 
 
+@pytest.mark.parametrize(
+    ("placeholder", "media"),
+    [
+        ("isrc", _track(isrc=None)),
+        ("video_quality", _video(video_quality=None)),
+        ("album_title", _album(name=None)),
+        ("mix_name", _make(Mix, title=None)),
+        ("playlist_name", _make(Playlist, name=None)),
+    ],
+)
+def test_an_attribute_holding_none_is_passed_through(placeholder, media):
+    """None is a value tidalapi genuinely stores, not a signal that the placeholder does not apply.
+
+    `format_path_media` sanitises it into an empty string, dropping the placeholder from the path.
+    Returning the placeholder name instead would leave it verbatim in the filename.
+    """
+    assert format_str_media(placeholder, media) is None
+
+
+@pytest.mark.parametrize(
+    "placeholder",
+    ["album_track_num", "album_num_tracks", "track_volume_num_optional", "track_volume_num_optional_CD"],
+)
+def test_album_derived_placeholders_fall_back_when_the_album_is_missing(placeholder):
+    """Videos routinely carry no album. Reading through it raises, so the placeholder is kept."""
+    video = _video(album=None)
+
+    assert format_str_media(placeholder, video) == placeholder
+
+
 def test_artist_name_without_a_populated_artists_list_returns_the_placeholder():
     """Track declares `artists` at class level, so the `artist` fallback branch is unreachable.
 
